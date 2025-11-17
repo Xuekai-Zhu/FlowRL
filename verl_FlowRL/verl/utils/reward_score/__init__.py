@@ -39,6 +39,12 @@ def default_compute_score(data_source, solution_str, ground_truth, extra_info=No
         from . import gsm8k
 
         res = gsm8k.compute_score(solution_str, ground_truth)
+        
+    elif data_source == "math_dapo_cispo_cold_start_model":
+        from . import math_dapo_cispo_cold_start_model
+
+        res = math_dapo_cispo_cold_start_model.compute_score(solution_str, ground_truth)
+
     elif data_source in ["lighteval/MATH", "DigitalLearningGmbH/MATH-lighteval"]:
         from . import math
 

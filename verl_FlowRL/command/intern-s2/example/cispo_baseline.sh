@@ -1,9 +1,6 @@
 #!/bin/bash
 set -ex
 
-# =============================================================================
-# Environment Variables Setup
-# =============================================================================
 export MASTER_ADDR=$MASTER_ADDR
 export MASTER_PORT=6000
 export WORLD_SIZE=$NODE_COUNT
@@ -13,104 +10,77 @@ export TRITON_CACHE_DIR="/tmp/triton"
 export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libstdc++.so.6
 export PYTHONUNBUFFERED=1
 
-export NCCL_BLOCKING_WAIT=1  # Enable blocking wait to avoid early timeout
-export NCCL_TIMEOUT=2400000  # Timeout: 40 minutes
+export NCCL_BLOCKING_WAIT=1  # 启用阻塞等待，避免过早超时
+export NCCL_TIMEOUT=2400000  # 超时时间设为40分钟，根据实际需要调整
 
 export VLLM_USE_V1=1
-
-# =============================================================================
-# Ray Environment Variables
-# =============================================================================
+# ray 环境变量
 export RAY_MASTER_ADDR=${MASTER_ADDR:-"127.0.0.1"}
-export RAY_RANK=${RANK:-0} # 0 for head node, >0 for worker nodes
+export RAY_RANK=${RANK:-0} # 0 代表主节点, >0 代表工作节点
 export RAY_HEAD_PORT=${RAY_HEAD_PORT:-"6390"}
 export RAY_CLIENT_PORT=${RAY_CLIENT_PORT:-"10001"}
 export RAY_DASHBOARD_PORT=${RAY_DASHBOARD_PORT:-"8266"}
 
-# =============================================================================
-# Conda Environment Setup
-# =============================================================================
 cd /mnt/shared-storage-user/llmit/user/chengguangran/miniconda3/etc/profile.d
-source conda.sh
+source conda.sh 
 conda activate verl
+cd /mnt/shared-storage-user/llmit/user/chengguangran/projects/verl-cgr
 
-# =============================================================================
-# Project Configuration
-# =============================================================================
-cd /mnt/shared-storage-user/llmit/user/xuekaizhu/verl_FlowRL
-
-project_name='FlowRL_Scaling'
-exp_name='FlowRL-Qwen2.5-7B-Math'
-timestamp=$(date +%Y%m%d_%H%M%S)
-output_dir="${PWD}/work_dirs/${project_name}/${exp_name}/${timestamp}"
-rollout_data_dir="${output_dir}/flowrl_train_results"
-validation_data_dir="${output_dir}/flowrl_val_results"
+project_name='CISPO'
+exp_name='CISPO-Qwen2.5-7B-DAPO-Math-prompt-modified-reward'
+output_dir="${PWD}/work_dirs/${project_name}/${exp_name}/$(date +%Y%m%d_%H%M%S)"
+rollout_data_dir="${output_dir}/cispo_train_results"
+validation_data_dir="${output_dir}/cispo_val_results"
+# Use absolute path for checkpoint directory to save in current directory
 CKPTS_DIR="${output_dir}/ckpts"
+# 设置TensorBoard日志目录到当前工作目录
 export TENSORBOARD_DIR="${output_dir}/tensorboard_log"
 export VERL_FILE_LOGGER_PATH="${output_dir}/log"
 
-# =============================================================================
-# Model and Data Paths
-# =============================================================================
+# Paths
 MODEL_PATH="/mnt/shared-storage-user/llmit/user/chengguangran/model/cispo-cold-start-model/hf-170"
 TRAIN_FILE="/mnt/shared-storage-user/llmit/user/chengguangran/projects/verl-cgr/recipe/cispo/data/modified-dapo-math-17k.parquet"
 TEST_FILE="/mnt/shared-storage-user/llmit/user/chengguangran/projects/verl-cgr/recipe/cispo/data/modified-aime-2024.parquet"
 
-# =============================================================================
-# Algorithm Settings
-# =============================================================================
 adv_estimator=grpo
-
-# KL settings (ref policy needed for FlowRL)
+policy_loss_mode="cispo"
 use_kl_in_reward=False
 kl_coef=0.0
-use_kl_loss=True
+use_kl_loss=False
 kl_loss_coef=0.0
 
-# Sequence lengths
 max_prompt_length=$((1024 * 2))
-max_response_length=32768
+max_response_length=32768 # $((1024 * 20)) 
 
-# Clip parameters
+##### DAPO trick: clip-higher
 clip_ratio_low=0.2
 clip_ratio_high=0.28
-
-# =============================================================================
-# DAPO Tricks
-# =============================================================================
-# Overlong reward shaping
+##### DAPO trick: overlong reward shaping
 enable_overlong_buffer=True
-overlong_buffer_len=$((1024 * 4))
+overlong_buffer_len=$((1024 * 4)) # 512
 overlong_penalty_factor=1.0
-
-# Token-level loss
+##### DAPO trick: token-level loss
 loss_agg_mode="token-mean"
-
-# Dynamic Sampling
+##### DAPO trick: Dynamic Sampling 
 enable_filter_groups=True
 filter_groups_max_num_gen_batches=10
 filter_groups_metric="acc"
 
-# =============================================================================
-# Batch Size Configuration
-# =============================================================================
-train_prompt_bsz=512
+train_prompt_bsz=512 #16
 gen_prompt_bsz=$((train_prompt_bsz * 3))
-train_prompt_mini_bsz=32
-n_resp_per_prompt=16
+train_prompt_mini_bsz=32 # 8
+n_resp_per_prompt=16 # 8
 
-# =============================================================================
-# Ray Cluster Configuration
-# =============================================================================
+# Ray
+# RAY_ADDRESS=${RAY_ADDRESS:-"http://localhost:8265"}
 WORKING_DIR=${WORKING_DIR:-"${PWD}"}
 RUNTIME_ENV=${RUNTIME_ENV:-"${WORKING_DIR}/verl/trainer/runtime_env.yaml"}
 NNODES=${NODE_COUNT:-1}
-
-# Calculate total CPUs based on node count
+# Launch Ray cluster
+# 根据 NODE_COUNT 分配 num_cpus, 防止内存OOM
 node_count=${NODE_COUNT:-1}
 total_cpus=$((node_count * 128))
 
-# Launch Ray cluster
 if [ "$RAY_RANK" -eq 0 ]; then
   ray start --head \
     --node-ip-address="$RAY_MASTER_ADDR" \
@@ -127,40 +97,32 @@ fi
 
 sleep 10
 
-# =============================================================================
-# Sampling Configuration
-# =============================================================================
+# Algorithm
 temperature=1.0
 top_p=1.0
-top_k=-1  # 0 for HF rollout, -1 for vLLM rollout
+top_k=-1 # 0 for HF rollout, -1 for vLLM rollout
 val_top_p=1
 val_temperature=0.7
 val_top_k=-1
 
-# =============================================================================
-# Performance Configuration
-# =============================================================================
+
+# Performance Related Parameter
 sp_size=4
 use_dynamic_bsz=True
 actor_ppo_max_token_len=$((max_prompt_length + max_response_length))
 infer_ppo_max_token_len=$((max_prompt_length + max_response_length))
-offload=False
+offload=False # true
 gen_tp=4
 
-# =============================================================================
-# Submit Ray Job
-# =============================================================================
 ray job submit --address="http://127.0.0.1:$RAY_DASHBOARD_PORT" \
     --runtime-env="${RUNTIME_ENV}" \
     --working-dir "${WORKING_DIR}" \
-    -- python3 -m recipe.flowrl.main_flowrl \
+    -- python3 -m recipe.cispo.main_dapo \
     hydra.run.dir=${output_dir} \
     data.train_files="${TRAIN_FILE}" \
     data.val_files="${TEST_FILE}" \
     data.prompt_key=prompt \
     data.truncation='left' \
-    +actor_rollout_ref.actor.tb_type=tempered_important_sampling \
-    +actor_rollout_ref.actor.porj_layer=3 \
     data.max_prompt_length=${max_prompt_length} \
     data.max_response_length=${max_response_length} \
     data.gen_batch_size=${gen_prompt_bsz} \
@@ -169,6 +131,7 @@ ray job submit --address="http://127.0.0.1:$RAY_DASHBOARD_PORT" \
     algorithm.adv_estimator=${adv_estimator} \
     algorithm.use_kl_in_reward=${use_kl_in_reward} \
     algorithm.kl_ctrl.kl_coef=${kl_coef} \
+    actor_rollout_ref.actor.policy_loss.loss_mode=${policy_loss_mode} \
     actor_rollout_ref.actor.use_kl_loss=${use_kl_loss} \
     actor_rollout_ref.actor.kl_loss_coef=${kl_loss_coef} \
     actor_rollout_ref.actor.clip_ratio_low=${clip_ratio_low} \
@@ -217,7 +180,7 @@ ray job submit --address="http://127.0.0.1:$RAY_DASHBOARD_PORT" \
     reward_model.overlong_buffer.enable=${enable_overlong_buffer} \
     reward_model.overlong_buffer.len=${overlong_buffer_len} \
     reward_model.overlong_buffer.penalty_factor=${overlong_penalty_factor} \
-    trainer.logger='["console","tensorboard"]' \
+    trainer.logger='["console","tensorboard","file"]' \
     trainer.project_name="${project_name}" \
     trainer.experiment_name="${exp_name}" \
     trainer.n_gpus_per_node=8 \
