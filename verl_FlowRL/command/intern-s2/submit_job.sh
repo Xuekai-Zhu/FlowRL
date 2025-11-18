@@ -2,15 +2,11 @@
 # FlowRL Qwen2.5-7B Math Training Job Submission Script
 
 # Job configuration
-JOB_NAME="flowrl-qwen25-7b-math"
+JOB_NAME="flowrl-qwen25-7b-math-v0-4-0"
 GPU_COUNT=8
 MEMORY=1600000
 CPU_COUNT=128
 CHARGED_GROUP="llmit_gpu"
-
-# Get the directory where this script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-TRAINING_SCRIPT="${SCRIPT_DIR}/run_flowrl.sh"
 
 rjob submit \
 --name=${JOB_NAME} \
@@ -29,4 +25,4 @@ rjob submit \
 -e DISTRIBUTED_JOB=true \
 --custom-resources rdma/mlnx_shared=8 \
 --custom-resources mellanox.com/mlnx_rdma=1 \
--- bash ${TRAINING_SCRIPT}
+-- bash /mnt/shared-storage-user/llmit/user/xuekaizhu/FlowRL/verl_FlowRL/command/intern-s2/run_flowrl.sh

@@ -264,7 +264,7 @@ class ActorRolloutRefWorker(Worker):
 
             n_dim = actor_module.config.hidden_size  
             # actor_module.proj_z = torch.nn.Linear(n_dim, 1)
-            actor_module.proj_z = ProjZModule(n_dim, num_layers=self.config.actor.porj_layer)
+            actor_module.proj_z = ProjZModule(n_dim)#num_layers=self.config.actor.porj_layer)
 
             # Apply Liger kernel to the model if use_liger is set to True
             if use_liger:
