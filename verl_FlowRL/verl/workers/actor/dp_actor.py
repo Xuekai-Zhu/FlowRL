@@ -411,40 +411,16 @@ class DataParallelPPOActor(BasePPOActor):
                         calculate_entropy = True
                     entropy, log_prob, log_z = self._forward_micro_batch(micro_batch=data, temperature=temperature, calculate_entropy=calculate_entropy, return_log_z=True)
 
-                    loss_variant = os.getenv("FLOWRL_LOSS_VARIANT", "vanilla")
-
-                    if loss_variant == "vanilla":
-                        policy_loss, data = self.compute_flowrl_objective(logpf=log_prob, 
-                                                        logf_ref=data['ref_log_prob'],
-                                                        logpf_old=old_log_prob,
-                                                        log_z=log_z,
-                                                        reward=advantages,
-                                                        response_mask=response_mask,
-                                                        clip_ratio=self.config.clip_ratio)
-                    elif loss_variant == "flowrl_clip_max":
-                        policy_loss, data = self.compute_flowrl_clip_max(logpf=log_prob, 
-                                                        logf_ref=data['ref_log_prob'],
-                                                        logpf_old=old_log_prob,
-                                                        log_z=log_z,
-                                                        reward=advantages,
-                                                        response_mask=response_mask,
-                                                        clip_ratio=self.config.clip_ratio)
-                    elif loss_variant == "flowrl_dual_clip":
-                        policy_loss, data = self.compute_flowrl_dual_clip(logpf=log_prob, 
-                                                        logf_ref=data['ref_log_prob'],
-                                                        logpf_old=old_log_prob,
-                                                        log_z=log_z,
-                                                        reward=advantages,
-                                                        response_mask=response_mask,
-                                                        clip_ratio=self.config.clip_ratio)
-                    elif loss_variant == "flowrl_no_is":
-                        policy_loss, data = self.compute_flowrl_no_is(logpf=log_prob, 
-                                                        logf_ref=data['ref_log_prob'],
-                                                        logpf_old=old_log_prob,
-                                                        log_z=log_z,
-                                                        reward=advantages,
-                                                        response_mask=response_mask,
-                                                        clip_ratio=self.config.clip_ratio)
+                    # Compute FlowRL objective
+                    policy_loss, data = self.compute_flowrl_objective(
+                        logpf=log_prob,
+                        logf_ref=data['ref_log_prob'],
+                        logpf_old=old_log_prob,
+                        log_z=log_z,
+                        reward=advantages,
+                        response_mask=response_mask,
+                        clip_ratio=self.config.clip_ratio
+                    )
 
                     # pg_loss, pg_clipfrac, ppo_kl, pg_clipfrac_lower = compute_policy_loss(
                     #     old_log_prob=old_log_prob,
@@ -497,88 +473,6 @@ class DataParallelPPOActor(BasePPOActor):
                 append_to_dict(metrics, data)
         self.actor_optimizer.zero_grad()
         return metrics
-    
-    def compute_orignal_tb_loss(self, logpf=None, logf_ref=None, log_z=None, reward=None, response_mask=None, clip_ratio=None):
-        # squeeze log_z to (B,)
-        log_z = log_z.squeeze(-1)
-        B = log_z.shape[0]
-
-        # mean of log p_f / log p_ref over valid tokens
-        avg_logpf = verl_F.masked_mean(logpf, response_mask, axis=1)
-        avg_logp_ref = verl_F.masked_mean(logf_ref, response_mask, axis=1)
-
-        # mean of token-level reward → log
-        # we set R = exp(advantage); then log_reward = advantage
-        seq_log_reward = verl_F.masked_mean(reward, response_mask, axis=1) 
-        
-        # Assert dimension consistency 
-        assert log_z.shape == avg_logpf.shape == avg_logp_ref.shape == seq_log_reward.shape, \
-            f"Shape mismatch: log_z={log_z.shape}, logpf={avg_logpf.shape}, logp_ref={avg_logp_ref.shape}, log_reward={seq_log_reward.shape}"
-        
-        # TB loss residual and squared error
-        delta = log_z + avg_logpf - seq_log_reward - avg_logp_ref
-        losses = delta ** 2
-        avg_loss = torch.mean(losses)
-        
-        
-        # Loss statistics
-        negative_approx_kl = logpf - logf_ref
-        ratio = torch.exp(negative_approx_kl)
-        loss_term_dict = {
-                            "actor/logpf": verl_F.masked_mean(logpf, response_mask).detach().item(),
-                            "actor/logp_ref": verl_F.masked_mean(logf_ref, response_mask).detach().item(),
-                            "actor/log_z": log_z.mean().detach().item(),
-                            "actor/log_reward": verl_F.masked_mean(reward, response_mask).detach().item(),
-                            "actor/tb_loss": avg_loss.detach().item(),
-                            "actor/pos_high_ratio_frac": ((reward > 0) & (ratio > 1 + clip_ratio)).float().detach().mean().item(), 
-                            "actor/pos_low_ratio_frac": ((reward > 0) & (ratio < 1 - clip_ratio)).float().detach().mean().item(), 
-                            "actor/neg_high_ratio_frac": ((reward < 0) & (ratio > 1 + clip_ratio)).float().detach().mean().item(), 
-                            "actor/neg_low_ratio_frac": ((reward < 0) & (ratio < 1 - clip_ratio)).float().detach().mean().item(), 
-                        }
-                        
-        return avg_loss, loss_term_dict
-
-
-    def compute_ppo_style_tb_loss(self, logpf=None, logf_ref=None,  logpf_old=None, log_z=None, reward=None, response_mask=None, clip_ratio=None):
-        # GFN TB Loss
-        log_z = log_z.squeeze(-1)
-
-        avg_logpf = verl_F.masked_mean(logpf, response_mask, axis=1)
-        avg_logp_ref = verl_F.masked_mean(logf_ref, response_mask, axis=1)
-
-        seq_log_reward = verl_F.masked_mean(reward, response_mask, axis=1)         
-        delta = log_z + avg_logpf - 15*seq_log_reward - avg_logp_ref
-        gfn_loss = delta ** 2
-        avg_gfn_loss = torch.mean(gfn_loss)
-
-        # GFN-style PPO 
-        reward_tb = delta.detach().unsqueeze(-1)
-        negative_approx_kl = logpf - logpf_old
-        ratio = torch.exp(negative_approx_kl)
-
-        unclipped_loss = -reward_tb * ratio
-        clipped_loss = -reward_tb * torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio)
-        ppo_style_loss = torch.maximum(unclipped_loss, clipped_loss)
-        avg_ppo_loss = verl_F.masked_mean(ppo_style_loss, response_mask)
-
-        losses = avg_gfn_loss + avg_ppo_loss
-        # Loss statistics
-        loss_term_dict = {
-                            "actor/logpf": verl_F.masked_mean(logpf, response_mask).detach().item(),
-                            "actor/logp_ref": verl_F.masked_mean(logf_ref, response_mask).detach().item(),
-                            "actor/log_z": log_z.mean().detach().item(),
-                            "actor/log_reward": verl_F.masked_mean(reward, response_mask).detach().item(),
-                            "actor/tb_loss": avg_gfn_loss.detach().item(),
-                            "actor/ppo_loss": avg_ppo_loss.detach().item(),
-                            "actor/final_losses": losses.detach().item(),
-                            "actor/pos_high_ratio_frac": ((reward > 0) & (ratio > 1 + clip_ratio)).float().detach().mean().item(), 
-                            "actor/pos_low_ratio_frac": ((reward > 0) & (ratio < 1 - clip_ratio)).float().detach().mean().item(), 
-                            "actor/neg_high_ratio_frac": ((reward < 0) & (ratio > 1 + clip_ratio)).float().detach().mean().item(),
-                            "actor/neg_low_ratio_frac": ((reward < 0) & (ratio < 1 - clip_ratio)).float().detach().mean().item(), 
-                        }
-                        
-        return losses, loss_term_dict
-
 
     def compute_flowrl_objective(self, logpf=None, logf_ref=None,  logpf_old=None, log_z=None, reward=None, response_mask=None, clip_ratio=None):
 
@@ -623,7 +517,7 @@ class DataParallelPPOActor(BasePPOActor):
                             "actor/log_z": log_z.mean().detach().item(),
                             "actor/log_reward": verl_F.masked_mean(reward, response_mask).detach().item(),
                             "actor/final_loss": avg_loss.detach().item(),
-                            "actor/importance_weight": importance_weight.mean().detach().item(),
+                            "actor/importance_weight": imp_w.mean().detach().item(),
                             "actor/ppo_kl": ppo_kl.detach().item(),  # PPO-style KL (current vs old policy)
                             "actor/ref_kl": ref_kl.detach().item(),  # KL with reference policy
                         }
