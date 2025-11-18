@@ -2,7 +2,8 @@
 # FlowRL Qwen2.5-7B Math Training Job Submission Script
 
 # Job configuration
-JOB_NAME="flowrl-qwen25-7b-math-v0-4-0"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+JOB_NAME="flowrl-qwen25-7b-math-v0-4-0-${TIMESTAMP}"
 GPU_COUNT=8
 MEMORY=1600000
 CPU_COUNT=128
