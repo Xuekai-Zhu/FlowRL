@@ -38,6 +38,7 @@ pre_trained_model/
 **/*.tar.gz
 **/playground
 **/wandb
+verl_FlowRL/work_dirs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
