@@ -24,7 +24,7 @@ export RAY_DASHBOARD_PORT=${RAY_DASHBOARD_PORT:-"8266"}
 cd /mnt/shared-storage-user/llmit/user/chengguangran/miniconda3/etc/profile.d
 source conda.sh
 conda activate verl
-cd /mnt/shared-storage-user/llmit/user/xuekaizhu/verl_FlowRL
+cd /mnt/shared-storage-user/llmit/user/xuekaizhu/FlowRL/verl_FlowRL
 
 project_name='FlowRL_Scaling'
 exp_name='FlowRL-Qwen2.5-0.5B-DAPO-Math-prompt-modified-reward'
@@ -179,7 +179,7 @@ ray job submit --address="http://127.0.0.1:$RAY_DASHBOARD_PORT" \
     trainer.logger='["console","tensorboard"]' \
     trainer.project_name="${project_name}" \
     trainer.experiment_name="${exp_name}" \
-    trainer.n_gpus_per_node=4 \
+    trainer.n_gpus_per_node=8 \
     trainer.nnodes="${NNODES}" \
     trainer.val_before_train=False \
     trainer.test_freq=5 \

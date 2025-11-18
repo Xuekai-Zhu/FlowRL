@@ -1,0 +1,40 @@
+# Large data directories
+rllm/data/train
+rllm/data/test
+rllm/data/preprocess
+
+# Git directory
+.git
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+
+# Documentation and examples (not needed for job execution)
+docs
+examples
+
+# Test directories (not needed for job execution)
+tests
+
+# Logs and checkpoints (if any)
+*.log
+logs
+checkpoints
+wandb
+work_dirs
+outputs
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Other common excludes
+.DS_Store
+.ipynb_checkpoints

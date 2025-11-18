@@ -1,4 +1,4 @@
-rlaunch --gpu=4 \
+rlaunch --gpu=8 \
 --memory=160000 \
 --cpu=64 \
 --charged-group=llmit_gpu \

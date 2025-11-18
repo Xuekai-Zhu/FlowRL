@@ -37,7 +37,7 @@ conda activate verl
 # =============================================================================
 # Project Configuration
 # =============================================================================
-cd /mnt/shared-storage-user/llmit/user/xuekaizhu/verl_FlowRL
+cd /mnt/shared-storage-user/llmit/user/xuekaizhu/FlowRL/verl_FlowRL
 
 project_name='FlowRL_Scaling'
 exp_name='FlowRL-Qwen2.5-7B-Math-v0.4.0'
