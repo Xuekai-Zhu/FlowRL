@@ -25,7 +25,7 @@
 - [FlowRL Objective](#flowrl-objective)
 - [Trained Models & Experiment Logs](#trained-models--experiment-logs)
 - [Quick Start](#quick-start)
-  - [Option 1: Original Paper Reproduction (verl 0.4.0) ⭐ Recommended](#option-1-original-paper-reproduction-verl-040--recommended)
+  - [Option 1: Original Paper Reproduction (verl 0.4.0)](#option-1-original-paper-reproduction-verl-040--recommended)
     - [Step 1: Installation](#step-1-installation)
     - [Step 2: Data Preparation](#step-2-data-preparation)
     - [Step 3: Model Preparation](#step-3-model-preparation)
@@ -55,9 +55,15 @@ FlowRL is a flow-balanced reinforcement learning method that matches full reward
 
 ## Quick Start
 
-There are four ways to use FlowRL:
+There are three ways to use FlowRL:
 
-### Option 1: Original Paper Reproduction (verl 0.4.0)
+---
+
+**⭐ We recommend using Option 1 as the default choice.** Since verl updates frequently, the newest versions may have unstable factors such as training and inference mismatches. Option 1 uses verl 0.4.0, which is stable and has been thoroughly tested with our paper results.
+
+---
+
+### Option 1: Original Paper Reproduction (verl 0.4.0) ⭐ Recommended
 
 For exact reproduction of results from the paper, use the original repository with verl 0.4.0:
 
