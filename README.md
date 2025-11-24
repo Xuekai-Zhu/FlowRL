@@ -30,11 +30,10 @@
     - [Step 2: Data Preparation](#step-2-data-preparation)
     - [Step 3: Model Preparation](#step-3-model-preparation)
     - [Step 4: Training Scripts](#step-4-training-scripts)
-  - [Option 2: FlowRL with verl v0.5.0.dev](#option-2-flowrl-with-verl-v050dev)
-  - [Option 3: Latest verl Recipe FlowRL](#option-3-latest-verl-recipe-flowrl)
+  - [Option 2: Latest verl Recipe FlowRL](#option-3-latest-verl-recipe-flowrl)
     - [Step 1: Prepare Data and Model](#step-1-prepare-data-and-model)
     - [Step 2: Run Training](#step-2-run-training)
-  - [Option 4: Implement FlowRL Yourself](#option-4-implement-flowrl-yourself)
+  - [Option 3: Implement FlowRL Yourself](#option-4-implement-flowrl-yourself)
 - [Testing](#testing)
 - [Citation](#citation)
 
@@ -58,7 +57,7 @@ FlowRL is a flow-balanced reinforcement learning method that matches full reward
 
 There are four ways to use FlowRL:
 
-### Option 1: Original Paper Reproduction (verl 0.4.0) ⭐ Recommended
+### Option 1: Original Paper Reproduction (verl 0.4.0)
 
 For exact reproduction of results from the paper, use the original repository with verl 0.4.0:
 
@@ -110,21 +109,14 @@ bash command/training/math/flowrl_32B_math.sh
 # For 7B code training
 bash command/training/code/flowrl_7B_code.sh
 ```
-
-### Option 2: FlowRL with verl v0.5.0.dev
-
-For running FlowRL using verl v0.5.0.dev:
-
-👉 **verl v0.5.0.dev Recipe:** [run_flowrl_cispo_clip_qwen2.5_7b.sh](https://github.com/Xuekai-Zhu/verl_FlowRL/blob/flowrl-v0.5.0.dev/recipe/flowrl/run_flowrl_cispo_clip_qwen2.5_7b.sh)
-
-### Option 3: Latest verl Recipe FlowRL
+----
+### Option 2: Latest verl Recipe FlowRL
 
 For running FlowRL using the latest verl framework:
 
 **Latest verl:**
 
 - verl recipe: [https://github.com/volcengine/verl/tree/main/recipe/flowrl](https://github.com/volcengine/verl/tree/main/recipe/flowrl)
-- fp16 infer: [PR #4036](https://github.com/volcengine/verl/pull/4036)
 
 #### Step 1: Prepare Data and Model
 
@@ -142,8 +134,8 @@ bash recipe/flowrl/prepare/prepare_model.sh
 # Train FlowRL with Qwen2.5-7B
 bash recipe/flowrl/run_flowrl_qwen2.5_7b.sh
 ```
-
-### Option 4: Implement FlowRL Yourself
+----
+### Option 3: Implement FlowRL Yourself
 
 If you want to implement FlowRL in your own codebase, we provide a detailed implementation guide:
 
